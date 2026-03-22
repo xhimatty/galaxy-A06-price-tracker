@@ -1,6 +1,6 @@
 from playwright.sync_api import sync_playwright
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 import logging
 import os
 
@@ -43,13 +43,13 @@ def price_tracker():
             except Exception as e:
                 log_error(f"Error fetching old price for article {i}: {e}")
                 old_price = "N/A"
-            date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            date_scraped = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
             data.append({
                 'title': title,
                 'price': price,
                 'old_price': old_price,
-                'date': date
+                'date': date_scraped
             })
 
         browser.close()
@@ -57,6 +57,10 @@ def price_tracker():
     return data
 
 if __name__ == '__main__':
+    if date.today() > date(2026, 4, 21):
+        log_info("Schedule expired. Program stopped!")
+        exit(0)
+
     log_info("Price tracking started.")
     data = price_tracker()
     log_info('Price tracking completed')
