@@ -9,11 +9,7 @@ This solution delivers continuous competitive intelligence on pricing dynamics, 
 ## Key Features
 - Reliable browser automation using Playwright (Chromium) for dynamic JavaScript-rendered pages  
 
-- Extraction of title, current price, and old price
-
 - Daily change detection and flagging against last-known historical prices
-
-- Append-only CSV storage for long-term trend analysis
 
 - Integrated with GitHub Actions to execute on a daily cron schedule, ensuring consistent data collection with automated commits without manual intervention.
 
