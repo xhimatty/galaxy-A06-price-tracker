@@ -8,12 +8,12 @@ on:
 jobs:
   run-tracker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false   # disable default token so we can push manually
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,7 +39,9 @@ jobs:
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add price_tracker_data.csv price_tracker.log
           git commit -m "Update data and log [skip ci]" || echo "No changes to commit"
-          git push https://xhimatty:${{ secrets.GITHUB_TOKEN }}@github.com/xhimatty/galaxy-A06-price-tracker.git HEAD:main
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
