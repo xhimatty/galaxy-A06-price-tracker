@@ -27,8 +27,14 @@ jobs:
           playwright install chromium
 
       - name: Run price tracker
-        run: |
-          python price_tracker.py
+        run: xvfb-run python price_tracker.py
+
+      - name: Upload debug screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: screenshot_*.png
 
       - name: Commit and push changes
         run: |
