@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 import pandas as pd
 from datetime import datetime, date
+import time
 import logging
 import os
 
@@ -19,42 +20,76 @@ def log_info(message):
 
 def price_tracker():
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-        page.goto('https://www.jumia.com.ng/catalog/?q=samsung+a06+128gb&official_store=1#catalog-listing')
-        page.locator('article.prd').first.wait_for(state='visible')
-        articles = page.locator('article.prd')
+        browser = p.chromium.launch(args=["--disable-blink-features=AutomationControlled"])
+        try:
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 800},
+                locale="en-NG",
+            )
+            page = context.new_page()
+            page.goto('https://www.jumia.com.ng/catalog/?q=samsung+a06+128gb&official_store=1#catalog-listing')
+            page.wait_for_timeout(5000)
 
-        data = []
-        count = articles.count()
-        for i in range(count):
             try:
-                title = articles.nth(i).locator('h3.name').inner_text().strip()
+                page.locator('article.prd').first.wait_for(state='visible', timeout=50000)
+                articles = page.locator('article.prd')
             except Exception as e:
-                log_error(f"Error fetching title for article {i}: {e}")
-                title = "N/A"
-            try:
-                price = articles.nth(i).locator('div.prc').inner_text().strip()
-            except Exception as e:
-                log_error(f"Error fetching price for article {i}: {e}")
-                price = "N/A"
-            try:
-                old_price = articles.nth(i).locator('div.old').inner_text().strip()
-            except Exception as e:
-                log_error(f"Error fetching old price for article {i}: {e}")
-                old_price = "N/A"
-            date_scraped = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                log_error(f"Failed to load products: {e}")
+                screenshot_path = f"screenshot_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.png"
+                page.screenshot(path=screenshot_path, full_page=True)
+                log_error(f"Screenshot saved to {screenshot_path}")
+                raise
 
-            data.append({
-                'title': title,
-                'price': price,
-                'old_price': old_price,
-                'date': date_scraped
-            })
+            data = []
+            count = articles.count()
+            for i in range(count):
+                try:
+                    title = articles.nth(i).locator('h3.name').inner_text().strip()
+                except Exception as e:
+                    log_error(f"Error fetching title for article {i}: {e}")
+                    title = "N/A"
+                try:
+                    price = articles.nth(i).locator('div.prc').inner_text().strip()
+                except Exception as e:
+                    log_error(f"Error fetching price for article {i}: {e}")
+                    price = "N/A"
+                try:
+                    old_price = articles.nth(i).locator('div.old').inner_text().strip()
+                except Exception as e:
+                    log_error(f"Error fetching old price for article {i}: {e}")
+                    old_price = "N/A"
+                date_scraped = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        browser.close()
+                data.append({
+                    'title': title,
+                    'price': price,
+                    'old_price': old_price,
+                    'date': date_scraped
+                })
+
+        finally:
+            context.close()
+            browser.close()
 
     return data
+
+def scrape_with_retry(max_retries=3, wait_seconds=10):
+    last_exception = None
+
+    for attempt in range(1, max_retries + 1):
+        log_info(f"Scrape attempt {attempt} of {max_retries}")
+        try:
+            return price_tracker()
+        except Exception as e:
+            last_exception = e
+            log_error(f"Attempt {attempt} failed: {e}")
+            if attempt < max_retries:
+                log_info(f"Waiting {wait_seconds}s before retry...")
+                time.sleep(wait_seconds)
+
+    raise RuntimeError(f"All {max_retries} attempts failed. Last error: {last_exception}")
+
 
 if __name__ == '__main__':
     if date.today() > date(2026, 4, 21):
@@ -62,7 +97,7 @@ if __name__ == '__main__':
         exit(0)
 
     log_info("Price tracking started.")
-    data = price_tracker()
+    data = scrape_with_retry(max_retries=3, wait_seconds=10)
     log_info('Price tracking completed')
 
     df = pd.DataFrame(data)
