@@ -53,3 +53,7 @@
 2026-03-29 09:46:28 - INFO - Scrape attempt 1 of 3
 2026-03-29 09:46:34 - INFO - Price tracking completed
 2026-03-29 09:46:34 - INFO - Saved data to price_tracker_data.csv. Total records: 30
+2026-03-30 10:20:54 - INFO - Price tracking started.
+2026-03-30 10:20:54 - INFO - Scrape attempt 1 of 3
+2026-03-30 10:21:01 - INFO - Price tracking completed
+2026-03-30 10:21:01 - INFO - Saved data to price_tracker_data.csv. Total records: 32
