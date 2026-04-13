@@ -1,4 +1,6 @@
 from playwright.sync_api import sync_playwright
+from playwright_stealth import Stealth
+import random
 import pandas as pd
 from datetime import datetime, date
 import time
@@ -18,18 +20,65 @@ def log_error(message):
 def log_info(message):
     logging.info(message)
 
+def generate_user_agent():
+    chrome_trains = {
+        146: 7680,
+        147: 7727,
+        148: 7778,
+    }   
+
+    chrome_major = random.choice(list(chrome_trains.keys()))
+    chrome_build = chrome_trains[chrome_major]
+    chrome_patch = random.randint(50, 190)
+
+    chrome_version = f"{chrome_major}.0.{chrome_build}.{chrome_patch}"
+
+    os_options = [
+        "Windows NT 10.0; Win64; x64",
+        "Windows NT 11.0; Win64; x64",
+        "Macintosh; Intel Mac OS X 13_6_1",
+        "Macintosh; Intel Mac OS X 14_2_1",
+    ]
+
+    os_string = random.choice(os_options)
+
+    return (
+        f"Mozilla/5.0 ({os_string}) AppleWebKit/537.36 "
+        f"(KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36"
+    )
+
+selected_user_agent = generate_user_agent()
+
 def price_tracker():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(args=["--disable-blink-features=AutomationControlled"])
+    stealth_config = Stealth()
+    with stealth_config.use_sync(sync_playwright()) as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+        )
+        context = None
         try:
             context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                user_agent=selected_user_agent,
                 viewport={"width": 1280, "height": 800},
-                locale="en-NG",
+                locale="en-US",
+                extra_http_headers={
+                    "Accept-Language": "en-US,en;q=0.9",
+                }
+
             )
             page = context.new_page()
             page.goto('https://www.jumia.com.ng/catalog/?q=samsung+a06+128gb&official_store=1#catalog-listing')
-            page.wait_for_timeout(5000)
+            page.mouse.move(100, 200)
+            page.wait_for_timeout(random.randint(1500, 3000))
+
+            page.mouse.wheel(0, random.randint(400, 800))
+            page.wait_for_timeout(random.randint(1000, 2500))
 
             try:
                 page.locator('article.prd').first.wait_for(state='visible', timeout=50000)
@@ -69,7 +118,8 @@ def price_tracker():
                 })
 
         finally:
-            context.close()
+            if context:
+                context.close()
             browser.close()
 
     return data
@@ -85,8 +135,9 @@ def scrape_with_retry(max_retries=3, wait_seconds=10):
             last_exception = e
             log_error(f"Attempt {attempt} failed: {e}")
             if attempt < max_retries:
-                log_info(f"Waiting {wait_seconds}s before retry...")
-                time.sleep(wait_seconds)
+                wait = wait_seconds * (2 ** (attempt - 1))
+                log_info(f"Waiting {wait}s before retry...")
+                time.sleep(wait)
 
     raise RuntimeError(f"All {max_retries} attempts failed. Last error: {last_exception}")
 
